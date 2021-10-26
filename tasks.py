@@ -13,12 +13,11 @@ lib = FileSystem()
 pdf = PDF()
 
 try:
-    WEB_URL = os.environ['WEB_URL']
-    AGENCY = os.environ['AGENCY']
+    AGENCY = os.environ["AGENCY"]
 except KeyError:
-    WEB_URL = "https://itdashboard.gov/"
     AGENCY = "National Archives and Records Administration"
 
+WEB_URL = "https://itdashboard.gov/"
 OUTPUT_DIR = f"{os.getcwd()}/output/"
 
 
@@ -31,12 +30,12 @@ def get_all_spendings():
     Function to get spendings of all agencies
     """
     browser.click_element("link:DIVE IN")
-    element = 'id:agency-tiles-widget'
+    element = "id:agency-tiles-widget"
     browser.wait_until_element_is_visible(element)
     count_agencies = browser.get_element_count("class:seals")
     spendings_info = browser.get_text(element).split("\n")
     excel_workbook = xlwt.Workbook()
-    excel_worksheet = excel_workbook.add_sheet('Agencies')
+    excel_worksheet = excel_workbook.add_sheet("Agencies")
     excel_worksheet.write(0, 0, "Department Title")
     excel_worksheet.write(0, 1, "Total Spendings")
     step = 4
@@ -47,7 +46,7 @@ def get_all_spendings():
         excel_worksheet.write(i + 1, 1, spendings_info[spending_amount])
         dept_name += step
         spending_amount += step
-    excel_workbook.save(f'{OUTPUT_DIR}/Agencies.xls')
+    excel_workbook.save(f"{OUTPUT_DIR}/Agencies.xls")
 
 
 def individual_spendings(agency):
@@ -57,16 +56,22 @@ def individual_spendings(agency):
         print("Incorrect value entered. Please enter a valid US Agency title")
         sys.exit()
     selector_element = "css:select"
-    browser.wait_until_element_is_visible(selector_element, timeout=timedelta(seconds=20))
+    browser.wait_until_element_is_visible(
+        selector_element, timeout=timedelta(seconds=20)
+    )
     browser.select_from_list_by_index(selector_element, "3")
-    browser.wait_until_page_does_not_contain_element("//*[@id='investments-table-object_paginate']/span/a[2]",
-                                                     timeout=timedelta(seconds=15))
-    table = 'css:table#investments-table-object'
+    browser.wait_until_page_does_not_contain_element(
+        "//*[@id='investments-table-object_paginate']/span/a[2]",
+        timeout=timedelta(seconds=15),
+    )
+    table = "css:table#investments-table-object"
 
-    row_count = browser.get_element_count("xpath://*[@id='investments-table-object']/tbody/tr")
+    row_count = browser.get_element_count(
+        "xpath://*[@id='investments-table-object']/tbody/tr"
+    )
 
     excel_workbook = xlwt.Workbook()
-    excel_worksheet = excel_workbook.add_sheet('Investments')
+    excel_worksheet = excel_workbook.add_sheet("Investments")
     excel_worksheet.write(0, 0, "UII")
     excel_worksheet.write(0, 1, "Bureau")
     excel_worksheet.write(0, 2, "Investment Title")
@@ -78,21 +83,31 @@ def individual_spendings(agency):
 
     for row in range(row_count):
         try:
-            browser.wait_until_page_contains_element(table, timeout=timedelta(seconds=30))
+            browser.wait_until_page_contains_element(
+                table, timeout=timedelta(seconds=30)
+            )
         except AssertionError:
             browser.reload_page()
             selector_element = "css:select"
-            browser.wait_until_element_is_visible(selector_element, timeout=timedelta(seconds=30))
+            browser.wait_until_element_is_visible(
+                selector_element, timeout=timedelta(seconds=30)
+            )
             browser.select_from_list_by_index(selector_element, "3")
-            browser.wait_until_page_does_not_contain_element("//*[@id='investments-table-object_paginate']/span/a[2]",
-                                                             timeout=timedelta(seconds=25))
+            browser.wait_until_page_does_not_contain_element(
+                "//*[@id='investments-table-object_paginate']/span/a[2]",
+                timeout=timedelta(seconds=25),
+            )
         finally:
             unique_investment_identifier = browser.get_table_cell(table, 3 + row, 1)
         for column in range(7):
-            excel_worksheet.write(1 + row, column, browser.get_table_cell(table, 3 + row, 1 + column))
+            excel_worksheet.write(
+                1 + row, column, browser.get_table_cell(table, 3 + row, 1 + column)
+            )
 
         try:
-            link = browser.get_element_attribute(f"link:{unique_investment_identifier}", attribute="href")
+            link = browser.get_element_attribute(
+                f"link:{unique_investment_identifier}", attribute="href"
+            )
             investment_title = browser.get_table_cell(table, 3 + row, 3)
             browser.execute_javascript(f"window.open('{link}')")
             browser.switch_window("NEW")
@@ -101,9 +116,18 @@ def individual_spendings(agency):
             time.sleep(10)
             browser.close_window()
             text_from_pdf = pdf.get_text_from_pdf(f"{unique_investment_identifier}.pdf")
-            uii = text_from_pdf[1].split('Section')[1].split('2. ')[-1].split(': ')[1]
-            investment_name = text_from_pdf[1].split('Section')[1].split('2. ')[0].split('. ')[-1].split(': ')[1]
-            if unique_investment_identifier == uii and investment_title == investment_name:
+            uii = text_from_pdf[1].split("Section")[1].split("2. ")[-1].split(": ")[1]
+            investment_name = (
+                text_from_pdf[1]
+                .split("Section")[1]
+                .split("2. ")[0]
+                .split(". ")[-1]
+                .split(": ")[1]
+            )
+            if (
+                unique_investment_identifier == uii
+                and investment_title == investment_name
+            ):
                 excel_worksheet.write(1 + row, 7, "Equal")
             else:
                 excel_worksheet.write(1 + row, 7, "Not Equal")
@@ -115,7 +139,7 @@ def individual_spendings(agency):
         except ElementNotFound:
             excel_worksheet.write(1 + row, 7, "--")
 
-    excel_workbook.save(f'{OUTPUT_DIR}/Individual Investments of {agency}.xls')
+    excel_workbook.save(f"{OUTPUT_DIR}/Individual Investments of {agency}.xls")
 
     pdf_files = lib.find_files("**/*.pdf")
     if pdf_files:
